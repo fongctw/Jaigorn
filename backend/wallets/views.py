@@ -3,9 +3,9 @@ from rest_framework.response import Response
 from rest_framework import status, generics, permissions
 from rest_framework.permissions import IsAuthenticated
 # Create your views here.
-from .serializers import CustomerPaySerializer, InstallmentBillSerializer, CreditDataSerializer, HomeBillSerializer
+from .serializers import CustomerPaySerializer, InstallmentBillSerializer, CreditDataSerializer, HomeBillSerializer, TransactionHistorySerializer
 from .services import execute_bnpl_transaction, BNPLServiceError, execute_bill_repayment
-from .models import PaymentRequest, InstallmentBill, WalletAccount
+from .models import PaymentRequest, InstallmentBill, WalletAccount, WalletTransaction
 from django.db.models import Q
 
 logger = logging.getLogger(__name__)
@@ -109,3 +109,16 @@ class HomeBillListView(generics.ListAPIView):
         ).select_related(
             'transaction__payment_request__merchant'
         ).order_by('due_date')
+
+class TransactionHistoryView(generics.ListAPIView):
+
+    serializer_class = TransactionHistorySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+
+        return WalletTransaction.objects.filter(
+            account__user=self.request.user
+        ).select_related(
+            'payment_request__merchant'
+        ).order_by('-created_at')

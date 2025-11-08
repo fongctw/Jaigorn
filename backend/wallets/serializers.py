@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import InstallmentBill, WalletAccount
+from .models import InstallmentBill, WalletAccount, WalletTransaction
 from decimal import Decimal
 from django.utils import timezone
 
@@ -97,3 +97,82 @@ class HomeBillSerializer(serializers.ModelSerializer):
         elif obj.status == 'OVERDUE':
             return 'overdue'
         return 'unknown'
+
+
+class TransactionHistorySerializer(serializers.ModelSerializer):
+
+    title = serializers.SerializerMethodField()
+
+    date = serializers.SerializerMethodField()
+
+    timestamp = serializers.DateTimeField(source='created_at')
+
+    amount = serializers.DecimalField(source='signed_amount', max_digits=10, decimal_places=2)
+
+    status = serializers.SerializerMethodField()
+
+    category = serializers.SerializerMethodField()
+
+    merchantName = serializers.CharField(
+        source='payment_request.merchant.name',
+        read_only=True,
+        default='Jaikorn Service'
+    )
+
+    location = serializers.SerializerMethodField()
+
+    referenceId = serializers.UUIDField(source='payment_request.id', read_only=True)
+
+    currency = serializers.SerializerMethodField()
+
+    class Meta:
+        model = WalletTransaction
+        fields = [
+            'id',
+            'title',
+            'date',
+            'timestamp',
+            'amount',
+            'status',
+            'category',     # (ยังไม่ทำ... มันช้า)
+            'merchantName',
+            'location',
+            'referenceId',  # (Frontend อาจจะไม่ต้องการ... มันคือ 'payment_request.id')
+            'currency',
+        ]
+
+    def get_title(self, obj: WalletTransaction) -> str:
+        if obj.type_code == WalletTransaction.TxnType.PAYMENT:
+            try:
+                return obj.payment_request.merchant.name
+            except AttributeError:
+                return "Payment"
+        elif obj.type_code == WalletTransaction.TxnType.REPAYMENT:
+            return "Repayment to Jaikorn"
+        return "Transaction"
+
+    def get_date(self, obj: WalletTransaction) -> str:
+        today = timezone.localdate()
+        tx_date = obj.created_at.date()
+
+        if tx_date == today:
+            return "TODAY"
+        elif tx_date == (today - timezone.timedelta(days=1)):
+            return "YESTERDAY"
+        else:
+            return tx_date.strftime('%d %B %Y').upper()
+
+    def get_status(self, obj: WalletTransaction) -> str:
+        return "Completed"
+
+    def get_category(self, obj: WalletTransaction) -> str:
+        if obj.type_code == WalletTransaction.TxnType.PAYMENT:
+            return "Shopping"
+        else:
+            return "Services"
+
+    def get_location(self, obj: WalletTransaction) -> str:
+        return "Bangkok, Thailand"
+
+    def get_currency(self, obj: WalletTransaction) -> str:
+        return "฿"
