@@ -1,8 +1,9 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from .serializers import PaymentRequestCreateSerializer, PaymentRequestDisplaySerializer
-from merchants.models import MerchantUser
-from rest_framework.exceptions import PermissionDenied
+from .serializers import PaymentRequestCreateSerializer, PaymentRequestDisplaySerializer, MerchantApplySerializer
+from .models import Merchant, MerchantUser, MerchantStatus
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 
 class MerchantRequestTransactionView(generics.CreateAPIView):
 
@@ -12,10 +13,13 @@ class MerchantRequestTransactionView(generics.CreateAPIView):
     def perform_create(self, serializer):
 
         try:
-            merchant_link = MerchantUser.objects.get(user=self.request.user)
+            merchant_link = MerchantUser.objects.select_related('merchant').get(user=self.request.user)
             merchant = merchant_link.merchant
         except MerchantUser.DoesNotExist:
             raise PermissionDenied("คุณไม่มีสิทธิ์ในการสร้าง QR (ไม่ใช่ร้านค้า)")
+
+        if merchant.status.code != 'ACTIVE':
+            raise ValidationError(f"ไม่สามารถสร้าง QR Code ได้ เนื่องจากสถานะของร้านค้าคือ '{merchant.status.name}'")
 
         serializer.save(merchant=merchant)
 
@@ -30,3 +34,46 @@ class MerchantRequestTransactionView(generics.CreateAPIView):
 
         headers = self.get_success_headers(display_serializer.data)
         return Response(display_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class MerchantApplyView(generics.CreateAPIView):
+
+    queryset = Merchant.objects.all()
+    serializer_class = MerchantApplySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        if MerchantUser.objects.filter(user=request.user).exists():
+            return Response(
+                {"error": "คุณได้สมัครเป็นร้านค้าไปแล้ว"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            with transaction.atomic():
+
+                active_status = MerchantStatus.objects.get(code='ACTIVE')
+
+                new_merchant = serializer.save(status=active_status)
+
+                MerchantUser.objects.create(
+                    user=request.user,
+                    merchant=new_merchant
+                )
+
+        except MerchantStatus.DoesNotExist:
+            return Response(
+                {"error": "ระบบขัดข้อง: ไม่พบสถานะ 'ACTIVE'"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)

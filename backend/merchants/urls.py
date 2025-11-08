@@ -1,5 +1,5 @@
 from django.urls import path
-from merchants.views import MerchantRequestTransactionView
+from .views import MerchantRequestTransactionView, MerchantApplyView
 
 urlpatterns = [
 
@@ -9,4 +9,9 @@ urlpatterns = [
         name='merchant-request-transaction'
     ),
 
+    path(
+            'apply/',
+            MerchantApplyView.as_view(),
+            name='merchant-apply'
+        ),
 ]
