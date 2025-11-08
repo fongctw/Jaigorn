@@ -9,7 +9,7 @@ from django.conf import settings
 from django.db.models import F
 
 from .models import WalletAccount, PaymentRequest, WalletTransaction, InstallmentBill
-
+from merchants.models import Merchant, MerchantUser
 
 class BNPLServiceError(Exception):
     pass
@@ -39,6 +39,14 @@ def execute_bnpl_transaction(
 
     amount = req.amount
     merchant = req.merchant
+
+    is_self_payment = MerchantUser.objects.filter(
+        user=user,
+        merchant=merchant
+    ).exists()
+
+    if is_self_payment:
+        raise BNPLServiceError("ร้านค้าไม่สามารถทำรายการชำระเงินให้ตัวเองได้")
 
     try:
         account = WalletAccount.objects.select_for_update().get(user=user)
@@ -95,3 +103,39 @@ def execute_bnpl_transaction(
     InstallmentBill.objects.bulk_create(bills_to_create)
 
     return new_txn
+
+@transaction.atomic
+def execute_bill_repayment(
+    *,
+    user: settings.AUTH_USER_MODEL,
+    bill_id: uuid.UUID
+) -> InstallmentBill:
+    try:
+        bill = InstallmentBill.objects.select_for_update().get(
+            id=bill_id,
+            account__user=user
+        )
+    except InstallmentBill.DoesNotExist:
+        raise BNPLServiceError("ไม่พบบิลนี้ หรือคุณไม่มีสิทธิ์จ่าย")
+
+    if bill.status == InstallmentBill.Status.PAID:
+        raise BNPLServiceError("บิลนี้ถูกจ่ายไปแล้ว")
+
+    account = bill.account
+    amount_to_repay = bill.amount_due
+
+    WalletTransaction.objects.create(
+        account=account,
+        type_code=WalletTransaction.TxnType.REPAYMENT,
+        signed_amount=-amount_to_repay,
+        balance_due_after=F('balance_due') - amount_to_repay,
+    )
+
+    account.balance_due = F('balance_due') - amount_to_repay
+    account.save()
+
+    bill.status = InstallmentBill.Status.PAID
+    bill.paid_at = timezone.now()
+    bill.save()
+
+    return bill
