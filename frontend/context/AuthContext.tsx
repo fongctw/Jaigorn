@@ -39,18 +39,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     if (!isRouterReady) {
       return
     }
+    const inLoginScreen = segments[0] === 'login'
 
-    const inApp = segments[0] === '(tabs)'
-
-    if (isLoggedIn && !inApp) {
+    if (isLoggedIn && inLoginScreen) {
       router.replace('/(tabs)')
-    } else if (!isLoggedIn && inApp) {
+    } else if (!isLoggedIn && !inLoginScreen) {
       router.replace('/login')
     }
   }, [isLoggedIn, segments, router, isRouterReady])
 
   const login = () => {
-    // Mock login: just set to true
     setIsLoggedIn(true)
   }
 

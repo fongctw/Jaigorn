@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native'
-import { ThemedView } from '@/components/themed-view'
 import { ThemedText } from '@/components/themed-text'
 import { Colors } from '@/constants/theme'
 import React from 'react'
@@ -16,7 +15,6 @@ import { Ionicons } from '@expo/vector-icons'
 import { userData } from '@/data/homeData'
 import { useAuth } from '@/context/AuthContext'
 
-// --- STYLES FUNCTION ---
 const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
   return StyleSheet.create({
     safeAreaWrapper: {
@@ -66,12 +64,11 @@ const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
       color: themeColors.text,
     },
     menuArrow: {
-      // Chevron icon color
+      color: themeColors.secondaryText,
     },
   })
 }
 
-// --- MENU ITEM (Internal Component) ---
 const ProfileMenuItem = ({
   icon,
   text,
@@ -102,22 +99,19 @@ const ProfileMenuItem = ({
   </TouchableOpacity>
 )
 
-// --- MAIN PROFILE SCREEN ---
 export default function ProfileScreen() {
   const colorScheme = useColorScheme() ?? 'light'
   const themeColors = Colors[colorScheme]
   const styles = getDynamicStyles(themeColors)
   const router = useRouter()
-  const { logout } = useAuth() // Get logout function
+  const { logout } = useAuth()
 
-  // Mock functions for menu items
   const handleEditProfile = () => console.log('Navigate to Edit Profile')
   const handleSettings = () => console.log('Navigate to Settings')
   const handleHelp = () => console.log('Navigate to Help Center')
 
   const handleLogout = () => {
-    logout() // Call logout()
-    // The AuthContext will automatically redirect to the login page
+    logout()
   }
 
   return (

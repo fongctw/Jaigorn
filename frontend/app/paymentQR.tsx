@@ -100,7 +100,7 @@ export default function PaymentQRScreen() {
   // --- Mock Payment Success (for demo) ---
   // In a real app, this would be triggered by a WebSocket or long-polling
   useEffect(() => {
-    const mockPaymentTime = 10 // Simulate success after 10 seconds
+    const mockPaymentTime = 10000 // Simulate success after 10 seconds
     const successTimer = setTimeout(() => {
       if (secondsLeft > 0) {
         clearCart()
