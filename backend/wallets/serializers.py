@@ -176,3 +176,30 @@ class TransactionHistorySerializer(serializers.ModelSerializer):
 
     def get_currency(self, obj: WalletTransaction) -> str:
         return "฿"
+
+class WalletTransactionSerializer(serializers.ModelSerializer):
+
+    title = serializers.SerializerMethodField()
+    date = serializers.SerializerMethodField()
+    amount = serializers.DecimalField(source='signed_amount', max_digits=10, decimal_places=2)
+
+    class Meta:
+        model = WalletTransaction
+        fields = ['id', 'title', 'date', 'amount']
+
+    def get_title(self, obj: WalletTransaction) -> str:
+
+        if obj.type_code == WalletTransaction.TxnType.PAYMENT and obj.payment_request:
+            return f"Payment to {obj.payment_request.merchant.name}"
+        elif obj.type_code == WalletTransaction.TxnType.REPAYMENT:
+            return "Repayment"
+        return "General Transaction"
+
+    def get_date(self, obj: WalletTransaction) -> str:
+
+        today = obj.created_at.date()
+        from django.utils import timezone
+        if today == timezone.now().date():
+            return "TODAY"
+
+        return obj.created_at.strftime('%-d %B %Y').upper()

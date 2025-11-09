@@ -1,9 +1,10 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from .serializers import PaymentRequestCreateSerializer, PaymentRequestDisplaySerializer, MerchantApplySerializer, CategorySerializer
+from .serializers import PaymentRequestCreateSerializer, PaymentRequestDisplaySerializer, MerchantApplySerializer, CategorySerializer, ShopDetailsSerializer
 from .models import Merchant, MerchantUser, MerchantStatus, Category
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import Prefetch
 
 class MerchantRequestTransactionView(generics.CreateAPIView):
 
@@ -81,7 +82,47 @@ class MerchantApplyView(generics.CreateAPIView):
 
 class CategoryListView(generics.ListAPIView):
 
-    queryset = Category.objects.all().order_by('name')
+    queryset = Category.objects.prefetch_related(
+        Prefetch(
+            'merchants',
+            queryset=Merchant.objects.filter(status__code='ACTIVE')
+        )
+    ).order_by('name')
+
     serializer_class = CategorySerializer
 
     permission_classes = [permissions.AllowAny]
+
+class ShopAllDetailsListView(generics.ListAPIView):
+
+    serializer_class = ShopDetailsSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+
+        return Merchant.objects.prefetch_related(
+            'product_filters',
+            'products',
+            'product_categories__products'
+        ).filter(status__code='ACTIVE').order_by('name')
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+
+        data = {item['id']: item for item in serializer.data}
+
+        return Response(data)
+
+class ShopDetailsView(generics.RetrieveAPIView):
+
+    serializer_class = ShopDetailsSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field = 'id'
+
+    def get_queryset(self):
+        return Merchant.objects.prefetch_related(
+            'product_filters',
+            'products',
+            'product_categories__products'
+        ).filter(status__code='ACTIVE')

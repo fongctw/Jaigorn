@@ -59,7 +59,7 @@ const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
       fontSize: 16,
       color: themeColors.text,
     },
-    loginButton: {
+    registerButton: {
       backgroundColor: themeColors.tint,
       padding: 15,
       borderRadius: 30,
@@ -69,7 +69,7 @@ const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
       flexDirection: 'row',
       gap: 10,
     },
-    loginButtonText: {
+    registerButtonText: {
       color: themeColors.tintForeground,
       fontSize: 18,
       fontWeight: 'bold',
@@ -79,15 +79,15 @@ const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
       textAlign: 'center',
       marginBottom: 10,
     },
-    signupContainer: {
+    loginContainer: {
       flexDirection: 'row',
       justifyContent: 'center',
       marginTop: 20,
     },
-    signupText: {
+    loginText: {
       color: themeColors.secondaryText,
     },
-    signupLink: {
+    loginLink: {
       color: themeColors.tint,
       fontWeight: 'bold',
       marginLeft: 5,
@@ -95,21 +95,22 @@ const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
   })
 }
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
   const colorScheme = useColorScheme() ?? 'light'
   const themeColors = Colors[colorScheme]
   const styles = getDynamicStyles(themeColors)
 
-  const { login } = useAuth()
+  const { register } = useAuth()
   const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleLogin = async () => {
-    if (!username || !password) {
-      setError('Please enter both username and password.')
+  const handleRegister = async () => {
+    if (!username || !email || !password) {
+      setError('Please fill in all fields.')
       return
     }
 
@@ -117,9 +118,9 @@ export default function LoginScreen() {
     setError('')
 
     try {
-      await login({ username, password })
+      await register({ username, email, password })
     } catch (err: any) {
-      setError('Login failed. Please check your credentials.')
+      setError('Registration failed. Please try again.')
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -130,8 +131,8 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.safeAreaWrapper} edges={['bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={styles.container}>
-        <ThemedText style={styles.title}>JAIGORN</ThemedText>
-        <ThemedText style={styles.subtitle}>Welcome Back</ThemedText>
+        <ThemedText style={styles.title}>Create Account</ThemedText>
+        <ThemedText style={styles.subtitle}>Join JAI KORN today</ThemedText>
 
         <View style={styles.inputContainer}>
           <Ionicons
@@ -146,6 +147,24 @@ export default function LoginScreen() {
             placeholderTextColor={themeColors.secondaryText}
             value={username}
             onChangeText={setUsername}
+            autoCapitalize="none"
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Ionicons
+            name="mail-outline"
+            size={20}
+            color={themeColors.secondaryText}
+            style={styles.inputIcon}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor={themeColors.secondaryText}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
             autoCapitalize="none"
           />
         </View>
@@ -170,23 +189,23 @@ export default function LoginScreen() {
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <TouchableOpacity
-          style={styles.loginButton}
-          onPress={handleLogin}
+          style={styles.registerButton}
+          onPress={handleRegister}
           disabled={isLoading}
         >
           {isLoading ? (
             <ActivityIndicator color={themeColors.tintForeground} />
           ) : (
-            <ThemedText style={styles.loginButtonText}>Login</ThemedText>
+            <ThemedText style={styles.registerButtonText}>Sign Up</ThemedText>
           )}
         </TouchableOpacity>
 
-        <View style={styles.signupContainer}>
-          <ThemedText style={styles.signupText}>
-            Don't have an account?
+        <View style={styles.loginContainer}>
+          <ThemedText style={styles.loginText}>
+            Already have an account?
           </ThemedText>
-          <Link href="/register">
-            <ThemedText style={styles.signupLink}>Sign Up</ThemedText>
+          <Link href="/login">
+            <ThemedText style={styles.loginLink}>Log In</ThemedText>
           </Link>
         </View>
       </ScrollView>

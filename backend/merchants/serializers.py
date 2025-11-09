@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from wallets.models import PaymentRequest
-from .models import Merchant, MerchantUser, MerchantStatus, Category
+from .models import Merchant, MerchantUser, MerchantStatus, Category, Product, ProductCategory
 from django.core.validators import MinValueValidator
 from decimal import Decimal
 from rest_framework.validators import UniqueValidator
@@ -58,11 +58,52 @@ class MerchantApplySerializer(serializers.ModelSerializer):
             'name': {'label': 'Shop Name'}
         }
 
+class ShopCardSerializer(serializers.ModelSerializer):
+
+    distance = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Merchant
+        fields = ['id', 'name', 'distance', 'image']
+
+    def get_distance(self, obj) -> str:
+        import random
+        dist = random.uniform(0.1, 2.5)
+        return f"{dist:.1f} km"
 
 class CategorySerializer(serializers.ModelSerializer):
 
-    icon = serializers.CharField(source='icon_name')
+    title = serializers.CharField(source='name')
+    data = ShopCardSerializer(source='merchants', many=True, read_only=True)
 
     class Meta:
-        model = Category
-        fields = ['id', 'name', 'icon']
+            model = Category
+            fields = ['title', 'data']
+
+class ProductIdSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Product
+        fields = ['id']
+
+class ShopDetailCategorySerializer(serializers.ModelSerializer):
+
+    title = serializers.CharField(source='name')
+    products = serializers.StringRelatedField(many=True)
+
+    class Meta:
+        model = ProductCategory
+        fields = ['title', 'products']
+
+class ShopDetailsSerializer(serializers.ModelSerializer):
+
+    filters = serializers.StringRelatedField(source='product_filters', many=True)
+    highlight = serializers.SerializerMethodField()
+    categories = ShopDetailCategorySerializer(source='product_categories', many=True)
+
+    class Meta:
+        model = Merchant
+        fields = ['id', 'name', 'filters', 'highlight', 'categories']
+
+    def get_highlight(self, obj: Merchant) -> list[str]:
+        return list(obj.products.filter(is_highlight=True).values_list('id', flat=True))
