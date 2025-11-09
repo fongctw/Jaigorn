@@ -72,6 +72,13 @@ class ShopCardSerializer(serializers.ModelSerializer):
         dist = random.uniform(0.1, 2.5)
         return f"{dist:.1f} km"
 
+class SimpleCategorySerializer(serializers.ModelSerializer):
+    icon = serializers.CharField(source='icon_name')
+
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'icon']
+
 class CategorySerializer(serializers.ModelSerializer):
 
     title = serializers.CharField(source='name')
@@ -82,13 +89,13 @@ class CategorySerializer(serializers.ModelSerializer):
             fields = ['title', 'data']
 
 class ProductIdSerializer(serializers.ModelSerializer):
-    """Serializer สำหรับแสดง ID ของ Product เท่านั้น"""
+
     class Meta:
         model = Product
         fields = ['id']
 
 class ShopDetailCategorySerializer(serializers.ModelSerializer):
-    """Serializer สำหรับหมวดหมู่สินค้าที่แสดงรายการ Product ID"""
+
     title = serializers.CharField(source='name')
     products = serializers.StringRelatedField(many=True)
 

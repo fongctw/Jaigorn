@@ -132,7 +132,7 @@ export default function RegisterScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={styles.container}>
         <ThemedText style={styles.title}>Create Account</ThemedText>
-        <ThemedText style={styles.subtitle}>Join JAI KORN today</ThemedText>
+        <ThemedText style={styles.subtitle}>Join JAIGORN today</ThemedText>
 
         <View style={styles.inputContainer}>
           <Ionicons

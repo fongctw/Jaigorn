@@ -130,7 +130,7 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.safeAreaWrapper} edges={['bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={styles.container}>
-        <ThemedText style={styles.title}>JAI KORN</ThemedText>
+        <ThemedText style={styles.title}>JAIGORN</ThemedText>
         <ThemedText style={styles.subtitle}>Welcome Back</ThemedText>
 
         <View style={styles.inputContainer}>

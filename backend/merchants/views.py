@@ -1,6 +1,6 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from .serializers import PaymentRequestCreateSerializer, PaymentRequestDisplaySerializer, MerchantApplySerializer, CategorySerializer, ShopDetailsSerializer
+from .serializers import PaymentRequestCreateSerializer, PaymentRequestDisplaySerializer, MerchantApplySerializer, CategorySerializer, ShopDetailsSerializer, SimpleCategorySerializer
 from .models import Merchant, MerchantUser, MerchantStatus, Category
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
@@ -83,6 +83,26 @@ class MerchantApplyView(generics.CreateAPIView):
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
+class SimpleCategoryListView(generics.ListAPIView):
+
+    queryset = Category.objects.all().order_by('name')
+    serializer_class = SimpleCategorySerializer
+    permission_classes = [permissions.AllowAny]
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        database_categories = serializer.data
+
+        near_you_category = {
+            'id': 0,
+            'name': 'Near You',
+            'icon': 'location-sharp'
+        }
+
+        final_data = [near_you_category] + database_categories
+
+        return Response(final_data)
 
 class CategoryListView(generics.ListAPIView):
 
@@ -96,6 +116,27 @@ class CategoryListView(generics.ListAPIView):
     serializer_class = CategorySerializer
 
     permission_classes = [permissions.AllowAny]
+
+class ShopAllDetailsListView(generics.ListAPIView):
+
+    serializer_class = ShopDetailsSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+
+        return Merchant.objects.prefetch_related(
+            'product_filters',
+            'products',
+            'product_categories__products'
+        ).filter(status__code='ACTIVE').order_by('name')
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+
+        data = {item['id']: item for item in serializer.data}
+
+        return Response(data)
 
 class ShopDetailsView(generics.RetrieveAPIView):
 

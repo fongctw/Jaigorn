@@ -1,5 +1,8 @@
 from django.urls import path
-from .views import MerchantRequestTransactionView, MerchantApplyView, CategoryListView, ShopDetailsView, MerchantProductDictView
+
+from .views import MerchantRequestTransactionView, MerchantApplyView, CategoryListView, ShopDetailsView, ShopAllDetailsListView, SimpleCategoryListView, MerchantProductDictView
+
+
 
 urlpatterns = [
 
@@ -10,21 +13,33 @@ urlpatterns = [
     ),
 
     path(
-            'apply/',
-            MerchantApplyView.as_view(),
-            name='merchant-apply'
-        ),
+        'apply/',
+        MerchantApplyView.as_view(),
+        name='merchant-apply'
+    ),
 
     path(
-            'categories/',
-            CategoryListView.as_view(),
-            name='category-list'
-        ),
+        'categories/',
+        SimpleCategoryListView.as_view(),
+        name='category-simple-list'
+    ),
 
     path(
-            '<uuid:id>/details/',
-            ShopDetailsView.as_view(),
-            name='shop-details'
+        'shops-sections/',
+        CategoryListView.as_view(),
+        name='category-list'
+    ),
+
+    path(
+        'all-details/',
+        ShopAllDetailsListView.as_view(),
+        name='shop-all-details-list'
+    ),
+
+    path(
+        '<uuid:id>/details/',
+        ShopDetailsView.as_view(),
+        name='shop-details'
     ),
 
     path(
