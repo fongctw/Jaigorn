@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import MerchantRequestTransactionView, MerchantApplyView, CategoryListView, ShopDetailsView, ShopAllDetailsListView
+from .views import MerchantRequestTransactionView, MerchantApplyView, CategoryListView, ShopDetailsView, ShopAllDetailsListView, SimpleCategoryListView
+
 
 urlpatterns = [
 
@@ -17,6 +18,12 @@ urlpatterns = [
 
     path(
         'categories/',
+        SimpleCategoryListView.as_view(),
+        name='category-simple-list'
+    ),
+
+    path(
+        'shops-sections/',
         CategoryListView.as_view(),
         name='category-list'
     ),

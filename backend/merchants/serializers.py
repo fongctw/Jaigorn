@@ -71,6 +71,13 @@ class ShopCardSerializer(serializers.ModelSerializer):
         dist = random.uniform(0.1, 2.5)
         return f"{dist:.1f} km"
 
+class SimpleCategorySerializer(serializers.ModelSerializer):
+    icon = serializers.CharField(source='icon_name')
+
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'icon']
+
 class CategorySerializer(serializers.ModelSerializer):
 
     title = serializers.CharField(source='name')
