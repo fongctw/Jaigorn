@@ -58,11 +58,24 @@ class MerchantApplySerializer(serializers.ModelSerializer):
             'name': {'label': 'Shop Name'}
         }
 
+class ShopCardSerializer(serializers.ModelSerializer):
+
+    distance = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Merchant
+        fields = ['id', 'name', 'distance', 'image']
+
+    def get_distance(self, obj) -> str:
+        import random
+        dist = random.uniform(0.1, 2.5)
+        return f"{dist:.1f} km"
 
 class CategorySerializer(serializers.ModelSerializer):
 
-    icon = serializers.CharField(source='icon_name')
+    title = serializers.CharField(source='name')
+    data = ShopCardSerializer(source='merchants', many=True, read_only=True)
 
     class Meta:
-        model = Category
-        fields = ['id', 'name', 'icon']
+            model = Category
+            fields = ['title', 'data']

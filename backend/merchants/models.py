@@ -16,6 +16,18 @@ class Merchant(models.Model):
     contact_email = models.EmailField(blank=True)
     contact_phone = models.CharField(max_length=20, blank=True)
 
+    image = models.URLField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="URL to the merchant's cover image"
+    )
+    categories = models.ManyToManyField(
+        'Category',
+        related_name='merchants',
+        blank=True
+    )
+
     status = models.ForeignKey(
         MerchantStatus,
         on_delete=models.RESTRICT,

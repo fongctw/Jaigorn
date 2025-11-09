@@ -4,6 +4,7 @@ from .serializers import PaymentRequestCreateSerializer, PaymentRequestDisplaySe
 from .models import Merchant, MerchantUser, MerchantStatus, Category
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import Prefetch
 
 class MerchantRequestTransactionView(generics.CreateAPIView):
 
@@ -81,7 +82,13 @@ class MerchantApplyView(generics.CreateAPIView):
 
 class CategoryListView(generics.ListAPIView):
 
-    queryset = Category.objects.all().order_by('name')
+    queryset = Category.objects.prefetch_related(
+        Prefetch(
+            'merchants',
+            queryset=Merchant.objects.filter(status__code='ACTIVE')
+        )
+    ).order_by('name')
+
     serializer_class = CategorySerializer
 
     permission_classes = [permissions.AllowAny]
