@@ -10,6 +10,7 @@ import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 
 const TIMER_DURATION = 120 // 120 seconds = 2 minutes
+const SUCCESS_DELAY_MS = 10000 // show success + redirect after 10 seconds
 
 const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
   return StyleSheet.create({
@@ -52,6 +53,12 @@ const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
       fontWeight: 'bold',
       color: themeColors.tint,
     },
+    successText: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: '#3CB371',
+      textTransform: 'uppercase',
+    },
     timeoutText: {
       fontSize: 20,
       fontWeight: 'bold',
@@ -79,39 +86,42 @@ export default function PaymentQRScreen() {
   }>()
 
   const [secondsLeft, setSecondsLeft] = useState(TIMER_DURATION)
+  const [isSuccess, setIsSuccess] = useState(false)
 
   useEffect(() => {
-    if (secondsLeft <= 0) {
-      Alert.alert(
-        'Payment Timed Out',
-        'Your session has expired. Please try again.',
-        [{ text: 'OK', onPress: () => router.back() }]
-      )
+    if (isSuccess) {
       return
     }
-
     const interval = setInterval(() => {
-      setSecondsLeft((prev) => prev - 1)
+      setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0))
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [secondsLeft, router])
+  }, [isSuccess])
 
-  // --- Mock Payment Success (for demo) ---
-  // In a real app, this would be triggered by a WebSocket or long-polling
   useEffect(() => {
-    const mockPaymentTime = 10000 // Simulate success after 10 seconds
-    const successTimer = setTimeout(() => {
-      if (secondsLeft > 0) {
-        clearCart()
-        Alert.alert('Payment Successful!', 'Your payment has been received.', [
-          { text: 'OK', onPress: () => router.replace('/(tabs)') },
-        ])
-      }
-    }, mockPaymentTime)
+    if (secondsLeft > 0 || isSuccess) {
+      return
+    }
+    Alert.alert(
+      'Payment Timed Out',
+      'Your session has expired. Please try again.',
+      [{ text: 'OK', onPress: () => router.back() }]
+    )
+  }, [secondsLeft, isSuccess, router])
 
+  useEffect(() => {
+    const successTimer = setTimeout(() => setIsSuccess(true), SUCCESS_DELAY_MS)
     return () => clearTimeout(successTimer)
-  }, [secondsLeft, clearCart, router])
+  }, [])
+
+  useEffect(() => {
+    if (!isSuccess) {
+      return
+    }
+    clearCart()
+    router.replace('/(tabs)')
+  }, [isSuccess, clearCart, router])
 
   // Format time as MM:SS
   const formatTime = (seconds: number) => {
@@ -135,12 +145,24 @@ export default function PaymentQRScreen() {
           <Ionicons
             name="timer-outline"
             size={24}
-            color={secondsLeft > 0 ? themeColors.tint : '#FF6347'}
+            color={
+              isSuccess
+                ? '#3CB371'
+                : secondsLeft > 0
+                  ? themeColors.tint
+                  : '#FF6347'
+            }
           />
           <ThemedText
-            style={secondsLeft > 0 ? styles.timerText : styles.timeoutText}
+            style={
+              isSuccess
+                ? styles.successText
+                : secondsLeft > 0
+                  ? styles.timerText
+                  : styles.timeoutText
+            }
           >
-            {formatTime(secondsLeft)}
+            {isSuccess ? 'Success' : formatTime(secondsLeft)}
           </ThemedText>
         </View>
 
