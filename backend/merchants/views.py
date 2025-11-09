@@ -1,7 +1,7 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from .serializers import PaymentRequestCreateSerializer, PaymentRequestDisplaySerializer, MerchantApplySerializer
-from .models import Merchant, MerchantUser, MerchantStatus
+from .serializers import PaymentRequestCreateSerializer, PaymentRequestDisplaySerializer, MerchantApplySerializer, CategorySerializer
+from .models import Merchant, MerchantUser, MerchantStatus, Category
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
@@ -77,3 +77,11 @@ class MerchantApplyView(generics.CreateAPIView):
 
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class CategoryListView(generics.ListAPIView):
+
+    queryset = Category.objects.all().order_by('name')
+    serializer_class = CategorySerializer
+
+    permission_classes = [permissions.AllowAny]

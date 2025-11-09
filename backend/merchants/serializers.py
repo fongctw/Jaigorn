@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from wallets.models import PaymentRequest
-from .models import Merchant, MerchantUser, MerchantStatus
+from .models import Merchant, MerchantUser, MerchantStatus, Category
 from django.core.validators import MinValueValidator
 from decimal import Decimal
 from rest_framework.validators import UniqueValidator
@@ -57,3 +57,12 @@ class MerchantApplySerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'name': {'label': 'Shop Name'}
         }
+
+
+class CategorySerializer(serializers.ModelSerializer):
+
+    icon = serializers.CharField(source='icon_name')
+
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'icon']

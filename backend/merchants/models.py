@@ -53,3 +53,20 @@ class MerchantUser(models.Model):
 
     def __str__(self):
         return f"{self.user.email} @ {self.merchant.name}"
+
+
+class Category(models.Model):
+
+    name = models.CharField(max_length=100, unique=True)
+
+    icon_name = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="ชื่อ Icon (เช่น 'fast-food', 'location-sharp')"
+    )
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name_plural = "Categories"
