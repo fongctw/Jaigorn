@@ -5,10 +5,13 @@ from rest_framework.validators import UniqueValidator
 from decimal import Decimal
 
 class UserRegisterSerializer(serializers.ModelSerializer):
-
+    username = serializers.CharField(
+        required=True,
+        validators=[UniqueValidator(queryset=CustomUser.objects.all(), message="Username นี้มีคนใช้แล้ว")]
+    )
     email = serializers.EmailField(
         required=True,
-        validators=[UniqueValidator(queryset=CustomUser.objects.all())]
+        validators=[UniqueValidator(queryset=CustomUser.objects.all(), message="Email นี้มีคนใช้แล้ว")]
     )
 
     password = serializers.CharField(
@@ -16,28 +19,12 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         required=True,
         validators=[validate_password]
     )
-    password2 = serializers.CharField(
-        write_only=True,
-        required=True,
-        label="Confirm Password"
-    )
-    first_name = serializers.CharField(required=True)
-    last_name = serializers.CharField(required=True)
 
     class Meta:
         model = CustomUser
-        fields = ('email', 'password', 'password2', 'first_name', 'last_name', 'phone')
-
-    def validate(self, attrs):
-        if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError(
-                {"password": "Password fields didn't match."}
-            )
-        return attrs
+        fields = ('username','email', 'password')
 
     def create(self, validated_data):
-        validated_data.pop('password2')
-
         user = CustomUser.objects.create_user(**validated_data)
         return user
 
@@ -55,11 +42,12 @@ class UserDataSerializer(serializers.ModelSerializer):
         ]
 
     def get_name(self, obj: CustomUser) -> str:
-        return f"{obj.first_name} {obj.last_name}"
+        full_name = f"{obj.first_name} {obj.last_name}".strip()
+        return full_name if full_name else obj.username
 
     def get_profileImageUrl(self, obj: CustomUser) -> str:
         if obj.first_name and obj.last_name:
             initials = (obj.first_name[0] + obj.last_name[0]).upper()
         else:
-            initials = obj.email[0].upper()
+            initials = obj.username[:2].upper()
         return f'https://placehold.co/100x100/E0EAE1/5DC270?text={initials}'

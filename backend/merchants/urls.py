@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import MerchantRequestTransactionView, MerchantApplyView, CategoryListView
+from .views import MerchantRequestTransactionView, MerchantApplyView, CategoryListView, ShopDetailsView
 
 urlpatterns = [
 
@@ -20,4 +20,10 @@ urlpatterns = [
             CategoryListView.as_view(),
             name='category-list'
         ),
+
+    path(
+            '<uuid:id>/details/',
+            ShopDetailsView.as_view(),
+            name='shop-details'
+    ),
 ]

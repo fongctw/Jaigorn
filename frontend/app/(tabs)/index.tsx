@@ -8,6 +8,7 @@ import {
 import { ThemedView } from '@/components/themed-view'
 import { Colors } from '@/constants/theme'
 import React from 'react'
+
 import {
   userData,
   creditData,
@@ -15,6 +16,7 @@ import {
   homeBills,
   transactions,
 } from '@/data/homeData'
+
 import { HomeHeader } from '@/components/organisms/HomeHeader'
 import { CreditCard } from '@/components/organisms/CreditCard'
 import { CategoryList } from '@/components/organisms/CategoryList'
@@ -41,6 +43,7 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme() ?? 'light'
   const themeColors = Colors[colorScheme]
   const styles = getDynamicStyles(themeColors)
+
   const formatCurrency = (amount: number) => {
     return `${creditData.currency} ${amount.toLocaleString('en-US', {
       minimumFractionDigits: 2,
