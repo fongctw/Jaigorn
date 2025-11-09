@@ -1,18 +1,24 @@
-import { allProducts, Product } from '@/data/productData' // Import your Product type
 import React, { createContext, useState, useContext, ReactNode } from 'react'
 
-// Define what a cart item looks like
+export interface Product {
+  id: string
+  name: string
+  price: string
+  image: string
+  description: string
+}
+
 export interface CartItem {
   product: Product
   quantity: number
+  parsedPrice: number
 }
 
-// Define the shape of the context
 interface CartContextType {
-  cartItems: Map<string, CartItem> // Use a Map for easy lookups by product ID
-  addToCart: (productId: string) => void
-  removeFromCart: (productId: string) => void // 1. Add removeFromCart
-  clearCart: () => void // 2. Add clearCart
+  cartItems: Map<string, CartItem>
+  addToCart: (product: Product) => void
+  removeFromCart: (productId: string) => void
+  clearCart: () => void
   getCartCount: () => number
   getCartTotal: () => number
 }
@@ -26,24 +32,33 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [cartItems, setCartItems] = useState(new Map<string, CartItem>())
 
-  // --- Add to Cart ---
-  const addToCart = (productId: string) => {
-    const product = allProducts[productId] // Get product from your 'database'
+  const addToCart = (product: Product) => {
     if (!product) return
+
+    const priceAsNumber = parseFloat(product.price)
+    if (isNaN(priceAsNumber)) {
+      console.error('Invalid product price:', product)
+      return // Don't add item with invalid price
+    }
 
     setCartItems((prevItems) => {
       const newItems = new Map(prevItems)
-      const existingItem = newItems.get(productId)
+      // Use product.id as the key
+      const existingItem = newItems.get(product.id)
 
       if (existingItem) {
         // If item exists, increment quantity
-        newItems.set(productId, {
+        newItems.set(product.id, {
           ...existingItem,
           quantity: existingItem.quantity + 1,
         })
       } else {
-        // If item doesn't exist, add it with quantity 1
-        newItems.set(productId, { product, quantity: 1 })
+        // If item doesn't exist, add it
+        newItems.set(product.id, {
+          product,
+          quantity: 1,
+          parsedPrice: priceAsNumber,
+        })
       }
 
       console.log('Cart updated:', newItems)
@@ -51,7 +66,6 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     })
   }
 
-  // --- 3. Implement removeFromCart ---
   const removeFromCart = (productId: string) => {
     setCartItems((prevItems) => {
       const newItems = new Map(prevItems)
@@ -75,13 +89,11 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     })
   }
 
-  // --- 4. Implement clearCart ---
   const clearCart = () => {
     setCartItems(new Map<string, CartItem>())
     console.log('Cart cleared')
   }
 
-  // --- Get Total Item Count (for the badge) ---
   const getCartCount = () => {
     let count = 0
     for (const item of cartItems.values()) {
@@ -90,21 +102,19 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     return count
   }
 
-  // --- Get Cart Total Price ---
   const getCartTotal = () => {
     let total = 0
     for (const item of cartItems.values()) {
-      total += item.product.price * item.quantity
+      total += item.parsedPrice * item.quantity
     }
     return total
   }
 
-  // --- 5. Add functions to the value ---
   const value = {
     cartItems,
     addToCart,
-    removeFromCart, // Added
-    clearCart, // Added
+    removeFromCart,
+    clearCart,
     getCartCount,
     getCartTotal,
   }
@@ -112,7 +122,6 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }
 
-// Create a custom hook to use the cart
 export const useCart = () => {
   const context = useContext(CartContext)
   if (context === undefined) {

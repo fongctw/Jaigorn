@@ -4,17 +4,26 @@ import {
   useColorScheme,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native'
 import { ThemedText } from '@/components/themed-text'
 import { Colors } from '@/constants/theme'
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Stack, useLocalSearchParams, Redirect } from 'expo-router'
-import { allProducts } from '@/data/productData'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import { useCart } from '@/context/CartContext'
 import { CartButton } from '@/components/atoms/CartButton'
+import apiClient from '@/services/api'
+
+interface Product {
+  id: string
+  name: string
+  price: string
+  image: string
+  description: string
+}
 
 const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
   return StyleSheet.create({
@@ -27,6 +36,11 @@ const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
     },
     container: {
       flex: 1,
+    },
+    centered: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     image: {
       width: '100%',
@@ -78,22 +92,69 @@ const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
 }
 
 export default function ProductDetailScreen() {
-  const { productId } = useLocalSearchParams<{ productId: string }>()
+  const { productId, merchantId } = useLocalSearchParams<{
+    productId: string
+    merchantId: string
+  }>()
   const colorScheme = useColorScheme() ?? 'light'
   const themeColors = Colors[colorScheme]
   const styles = getDynamicStyles(themeColors)
 
   const { addToCart } = useCart()
 
-  const product = allProducts[productId]
+  const [product, setProduct] = useState<Product | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  if (!product) {
-    return <Redirect href="/(tabs)/nearYou" />
-  }
+  useEffect(() => {
+    if (!productId || !merchantId) {
+      setError('Missing product or merchant ID.')
+      setIsLoading(false)
+      return
+    }
+
+    const fetchProduct = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        const response = await apiClient.get<{ [id: string]: Product }>(
+          `/merchants/${merchantId}/products/`
+        )
+        const productData = response.data[productId]
+        if (productData) {
+          setProduct(productData)
+        } else {
+          setError('Product not found.')
+        }
+      } catch (err) {
+        console.error('Failed to fetch product:', err)
+        setError('Could not load product details.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchProduct()
+  }, [productId, merchantId])
 
   const handleAddToCart = () => {
-    addToCart(product.id)
-    console.log('Added to cart:', product.name)
+    if (product) {
+      addToCart(product)
+      console.log('Added to cart:', product.name)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <View style={[styles.pageWrapper, styles.centered]}>
+        <Stack.Screen options={{ title: 'Loading...' }} />
+        <ActivityIndicator size="large" color={themeColors.tint} />
+      </View>
+    )
+  }
+
+  if (!product || error) {
+    return <Redirect href="/(tabs)/nearYou" />
   }
 
   return (

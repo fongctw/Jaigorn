@@ -36,7 +36,7 @@ export const TransactionItem = ({
       </View>
       <View style={styles.transactionRight}>
         <ThemedText style={styles.transactionAmount}>
-          {formatCurrency(transaction.amount).replace('-', '฿')}
+          {formatCurrency(transaction.amount).replace('-', '')}
         </ThemedText>
         <Ionicons
           name="chevron-forward"

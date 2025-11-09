@@ -9,8 +9,8 @@ import { Colors } from '@/constants/theme'
 import React from 'react'
 import { useCart } from '@/context/CartContext'
 import { Link } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { IconSymbol } from '../ui/icon-symbol'
 
 export const CartButton = () => {
   const colorScheme = useColorScheme() ?? 'light'
@@ -31,7 +31,7 @@ export const CartButton = () => {
           },
         ]}
       >
-        <Ionicons name="cart" size={28} color={themeColors.tintForeground} />
+        <IconSymbol name="cart" size={32} color="white" />
         <View
           style={[
             styles.badge,

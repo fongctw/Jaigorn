@@ -146,7 +146,7 @@ const CartListItem = ({
           {item.product.name}
         </ThemedText>
         <ThemedText style={styles.itemPrice}>
-          ฿ {item.product.price.toFixed(2)}
+          ฿ {Number(item.product.price).toFixed(2)}
         </ThemedText>
       </View>
       <View style={styles.itemControls}>
@@ -163,7 +163,7 @@ const CartListItem = ({
         <ThemedText style={styles.itemQuantity}>{item.quantity}</ThemedText>
         <TouchableOpacity
           style={styles.controlButton}
-          onPress={() => addToCart(item.product.id)}
+          onPress={() => addToCart(item.product)}
         >
           <Ionicons name="add-circle" size={24} color={themeColors.tint} />
         </TouchableOpacity>

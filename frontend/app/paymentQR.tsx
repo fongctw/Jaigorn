@@ -8,9 +8,11 @@ import { useCart } from '@/context/CartContext'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
+import apiClient from '@/services/api'
 
 const TIMER_DURATION = 120 // 120 seconds = 2 minutes
-const SUCCESS_DELAY_MS = 10000 // show success + redirect after 10 seconds
+const SUCCESS_DELAY_MS = 10000 // Time before *attempting* payment
+const REDIRECT_DELAY_MS = 2000 // Time to *show* success message before redirecting
 
 const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
   return StyleSheet.create({
@@ -54,6 +56,12 @@ const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
       fontWeight: 'bold',
       color: themeColors.tint,
     },
+    processingText: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: themeColors.secondaryText,
+      fontStyle: 'italic',
+    },
     successText: {
       fontSize: 20,
       fontWeight: 'bold',
@@ -88,9 +96,10 @@ export default function PaymentQRScreen() {
 
   const [secondsLeft, setSecondsLeft] = useState(TIMER_DURATION)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   useEffect(() => {
-    if (isSuccess) {
+    if (isSuccess || isProcessing) {
       return
     }
     const interval = setInterval(() => {
@@ -98,10 +107,10 @@ export default function PaymentQRScreen() {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [isSuccess])
+  }, [isSuccess, isProcessing])
 
   useEffect(() => {
-    if (secondsLeft > 0 || isSuccess) {
+    if (secondsLeft > 0 || isSuccess || isProcessing) {
       return
     }
     Alert.alert(
@@ -109,29 +118,103 @@ export default function PaymentQRScreen() {
       'Your session has expired. Please try again.',
       [{ text: 'OK', onPress: () => router.back() }]
     )
-  }, [secondsLeft, isSuccess, router])
+  }, [secondsLeft, isSuccess, isProcessing, router])
 
   useEffect(() => {
-    const successTimer = setTimeout(() => setIsSuccess(true), SUCCESS_DELAY_MS)
+    const successTimer = setTimeout(async () => {
+      if (!total) {
+        Alert.alert('Error', 'Total amount is missing.', [
+          { text: 'OK', onPress: () => router.back() },
+        ])
+        return
+      }
+
+      setIsProcessing(true)
+
+      try {
+        await apiClient.post('/wallets/me/generic-spend/', {
+          amount: total,
+        })
+
+        setIsSuccess(true)
+      } catch (err: any) {
+        console.error('Payment failed:', err)
+        let errorMessage = 'Your payment could not be completed.'
+        if (err.response && err.response.data && err.response.data.detail) {
+          errorMessage = err.response.data.detail
+        }
+
+        Alert.alert('Payment Failed', errorMessage, [
+          { text: 'OK', onPress: () => router.back() },
+        ])
+      } finally {
+        setIsProcessing(false)
+      }
+    }, SUCCESS_DELAY_MS)
+
     return () => clearTimeout(successTimer)
-  }, [])
+  }, [total, router])
 
   useEffect(() => {
     if (!isSuccess) {
       return
     }
+
     clearCart()
-    router.replace('/(tabs)')
+
+    const redirectTimer = setTimeout(() => {
+      router.replace('/(tabs)')
+    }, REDIRECT_DELAY_MS)
+
+    return () => clearTimeout(redirectTimer)
   }, [isSuccess, clearCart, router])
 
-  // Format time as MM:SS
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = seconds % 60
     return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`
   }
 
-  const qrUrl = `https://placehold.co/250x250/000/FFF?text=Scan+Me%0A${total}`
+  const qrUrl = `https://docs.lightburnsoftware.com/legacy/img/QRCode/ExampleCode.png`
+
+  const getStatusText = () => {
+    if (isSuccess) {
+      return 'Success'
+    }
+    if (isProcessing) {
+      return 'Processing...'
+    }
+    if (secondsLeft > 0) {
+      return formatTime(secondsLeft)
+    }
+    return 'Timed Out'
+  }
+
+  const getStatusStyle = () => {
+    if (isSuccess) {
+      return styles.successText
+    }
+    if (isProcessing) {
+      return styles.processingText
+    }
+    if (secondsLeft > 0) {
+      return styles.timerText
+    }
+    return styles.timeoutText
+  }
+
+  const getIconColor = () => {
+    if (isSuccess) {
+      return '#3CB371'
+    }
+    if (isProcessing) {
+      return themeColors.secondaryText
+    }
+    if (secondsLeft > 0) {
+      return themeColors.tint
+    }
+    return '#FF6347'
+  }
 
   return (
     <SafeAreaView style={styles.safeAreaWrapper} edges={['bottom']}>
@@ -143,28 +226,8 @@ export default function PaymentQRScreen() {
         <Image source={{ uri: qrUrl }} style={styles.qrCode} />
 
         <View style={styles.timerContainer}>
-          <Ionicons
-            name="timer-outline"
-            size={24}
-            color={
-              isSuccess
-                ? '#3CB371'
-                : secondsLeft > 0
-                  ? themeColors.tint
-                  : '#FF6347'
-            }
-          />
-          <ThemedText
-            style={
-              isSuccess
-                ? styles.successText
-                : secondsLeft > 0
-                  ? styles.timerText
-                  : styles.timeoutText
-            }
-          >
-            {isSuccess ? 'Success' : formatTime(secondsLeft)}
-          </ThemedText>
+          <Ionicons name="timer-outline" size={24} color={getIconColor()} />
+          <ThemedText style={getStatusStyle()}>{getStatusText()}</ThemedText>
         </View>
 
         <ThemedText style={styles.scanText}>

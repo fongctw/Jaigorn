@@ -13,9 +13,11 @@ type Bill = { title: string; date: string; amount: number; status: string }
 export const BillCard = ({
   bill,
   formatCurrency,
+  index
 }: {
   bill: Bill
   formatCurrency: (amount: number) => string
+  index: number
 }) => {
   const colorScheme = useColorScheme() ?? 'light'
   const themeColors = Colors[colorScheme]
@@ -24,7 +26,7 @@ export const BillCard = ({
   return (
     <View style={styles.billCard}>
       <View style={styles.billCardContent}>
-        <ThemedText style={styles.billCardTitle}>{bill.title}</ThemedText>
+        <ThemedText style={styles.billCardTitle}>{index == 0 ? 'Upcoming Bill' : index == 1 ? "December's Bill" : "January's Bill"}</ThemedText>
         <ThemedText style={styles.billCardAmount}>
           {formatCurrency(bill.amount)}
         </ThemedText>

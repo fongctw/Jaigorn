@@ -4,16 +4,22 @@ import {
   useColorScheme,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native'
 import { ThemedText } from '@/components/themed-text'
 import { Colors } from '@/constants/theme'
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Stack, useRouter } from 'expo-router'
 import { Image } from 'expo-image'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { userData } from '@/data/homeData'
 import { useAuth } from '@/context/AuthContext'
+import apiClient from '@/services/api'
+
+interface User {
+  name: string
+  profileImageUrl: string
+}
 
 const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
   return StyleSheet.create({
@@ -23,6 +29,16 @@ const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
     },
     container: {
       flex: 1,
+    },
+    centered: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    errorText: {
+      color: themeColors.text,
+      fontSize: 16,
+      textAlign: 'center',
+      padding: 20,
     },
     profileHeader: {
       alignItems: 'center',
@@ -106,6 +122,28 @@ export default function ProfileScreen() {
   const router = useRouter()
   const { logout } = useAuth()
 
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        const response = await apiClient.get<User>('/users/me/')
+        setUser(response.data)
+      } catch (err) {
+        console.error('Failed to fetch profile:', err)
+        setError('Could not load your profile.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchProfile()
+  }, [])
+
   const handleEditProfile = () => console.log('Navigate to Edit Profile')
   const handleSettings = () => console.log('Navigate to Settings')
   const handleHelp = () => console.log('Navigate to Help Center')
@@ -114,16 +152,42 @@ export default function ProfileScreen() {
     logout()
   }
 
+  if (isLoading) {
+    return (
+      <SafeAreaView
+        style={[styles.safeAreaWrapper, styles.centered]}
+        edges={['bottom']}
+      >
+        <Stack.Screen options={{ title: 'Profile' }} />
+        <ActivityIndicator size="large" color={themeColors.tint} />
+      </SafeAreaView>
+    )
+  }
+
+  if (error || !user) {
+    return (
+      <SafeAreaView
+        style={[styles.safeAreaWrapper, styles.centered]}
+        edges={['bottom']}
+      >
+        <Stack.Screen options={{ title: 'Profile' }} />
+        <ThemedText style={styles.errorText}>
+          {error || 'Profile data not found.'}
+        </ThemedText>
+      </SafeAreaView>
+    )
+  }
+
   return (
     <SafeAreaView style={styles.safeAreaWrapper} edges={['bottom']}>
       <Stack.Screen options={{ title: 'Profile' }} />
       <ScrollView style={styles.container}>
         <View style={styles.profileHeader}>
           <Image
-            source={{ uri: userData.profileImageUrl }}
+            source={{ uri: user.profileImageUrl }}
             style={styles.profileImage}
           />
-          <ThemedText style={styles.profileName}>{userData.name}</ThemedText>
+          <ThemedText style={styles.profileName}>{user.name}</ThemedText>
         </View>
 
         <View style={styles.menuSection}>

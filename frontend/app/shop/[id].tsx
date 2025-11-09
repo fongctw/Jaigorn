@@ -5,18 +5,44 @@ import {
   ScrollView,
   FlatList,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native'
 import { ThemedText } from '@/components/themed-text'
 import { Colors } from '@/constants/theme'
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Stack, useLocalSearchParams, Redirect, Link } from 'expo-router'
-import { allShopDetails } from '@/data/shopDetailData'
-import { allProducts, Product } from '@/data/productData'
+
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import { SearchBar } from '@/components/molecules/SearchBar'
 import { CartButton } from '@/components/atoms/CartButton'
+import apiClient from '@/services/api'
+
+interface Product {
+  id: string
+  name: string
+  price: string
+  image: string
+  description: string
+}
+
+interface ShopCategory {
+  title: string
+  products: string[]
+}
+
+interface ShopDetailsData {
+  id: string
+  name: string
+  filters: string[]
+  highlight: string[]
+  categories: ShopCategory[]
+}
+
+type AllShopDetailsResponse = {
+  [shopId: string]: ShopDetailsData
+}
 
 const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
   return StyleSheet.create({
@@ -30,6 +56,14 @@ const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
     container: {
       flex: 1,
     },
+
+    centered: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+
     filterScrollView: {
       paddingHorizontal: 20,
       paddingVertical: 10,
@@ -134,26 +168,35 @@ const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
       justifyContent: 'center',
       alignItems: 'center',
     },
-    // No results
+
     noResultsText: {
       textAlign: 'center',
       color: themeColors.secondaryText,
       marginTop: 20,
       fontStyle: 'italic',
+      fontSize: 16,
     },
   })
 }
 
 const ProductCard = ({
   item,
+  merchantId,
   styles,
   themeColors,
 }: {
   item: Product
+  merchantId: string
   styles: any
   themeColors: any
 }) => (
-  <Link href={`/product/${item.id}`} asChild>
+  <Link
+    href={{
+      pathname: `/product/${item.id}`,
+      params: { merchantId: merchantId },
+    }}
+    asChild
+  >
     <TouchableOpacity style={styles.productCard}>
       <Image
         source={{ uri: item.image }}
@@ -177,14 +220,22 @@ const ProductCard = ({
 
 const ProductListItem = ({
   item,
+  merchantId,
   styles,
   themeColors,
 }: {
   item: Product
+  merchantId: string
   styles: any
   themeColors: any
 }) => (
-  <Link href={`/product/${item.id}`} asChild>
+  <Link
+    href={{
+      pathname: `/product/${item.id}`,
+      params: { merchantId: merchantId },
+    }}
+    asChild
+  >
     <TouchableOpacity style={styles.productListItem}>
       <Image
         source={{ uri: item.image }}
@@ -208,23 +259,68 @@ export default function ShopDetailScreen() {
   const themeColors = Colors[colorScheme]
   const styles = getDynamicStyles(themeColors)
 
+  const [shop, setShop] = useState<ShopDetailsData | null>(null)
+  const [products, setProducts] = useState<{ [id: string]: Product } | null>(
+    null
+  )
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
 
-  const shop = allShopDetails[id]
+  useEffect(() => {
+    if (!id) {
+      setError('No shop ID provided.')
+      setIsLoading(false)
+      return
+    }
 
-  const getProduct = (productId: string) => allProducts[productId]
+    const fetchShopData = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        const [detailsResponse, productsResponse] = await Promise.all([
+          apiClient.get<AllShopDetailsResponse>(`/merchants/all-details/`),
+          apiClient.get<{ [id: string]: Product }>(
+            `/merchants/${id}/products/`
+          ),
+        ])
+
+        const specificShop = detailsResponse.data[id]
+        if (!specificShop) {
+          throw new Error(`Shop with ID ${id} not found.`)
+        }
+
+        setShop(specificShop)
+        setProducts(productsResponse.data)
+      } catch (err) {
+        console.error('Failed to fetch shop details:', err)
+        setError('Could not load shop data.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchShopData()
+  }, [id])
+
+  const getProduct = (productId: string): Product | undefined => {
+    return products ? products[productId] : undefined
+  }
 
   const filteredHighlights = useMemo(() => {
-    if (!shop) return []
+    if (!shop || !products) return []
     const query = searchQuery.toLowerCase()
     return shop.highlight
       .map(getProduct)
+      .filter((p): p is Product => !!p)
       .filter((product) => product.name.toLowerCase().includes(query))
-  }, [shop, searchQuery])
+  }, [shop, products, searchQuery])
 
   const filteredCategories = useMemo(() => {
-    if (!shop) return []
+    if (!shop || !products) return []
     const query = searchQuery.toLowerCase()
 
     const categoryFiltered =
@@ -237,12 +333,34 @@ export default function ShopDetailScreen() {
         ...category,
         products: category.products
           .map(getProduct)
+          .filter((p): p is Product => !!p)
           .filter((product) => product.name.toLowerCase().includes(query)),
       }))
       .filter((category) => category.products.length > 0)
-  }, [shop, searchQuery, activeFilter])
+  }, [shop, products, searchQuery, activeFilter])
 
-  if (!shop) {
+  if (isLoading) {
+    return (
+      <View style={[styles.pageWrapper, styles.centered]}>
+        <Stack.Screen options={{ title: 'Loading...' }} />
+        <ActivityIndicator size="large" color={themeColors.tint} />
+      </View>
+    )
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.pageWrapper, styles.centered]}>
+        <Stack.Screen options={{ title: 'Error' }} />
+        <ThemedText style={styles.noResultsText}>{error}</ThemedText>
+        <Link href="/(tabs)/nearYou" style={{ marginTop: 10 }}>
+          <ThemedText style={{ color: themeColors.tint }}>Go Back</ThemedText>
+        </Link>
+      </View>
+    )
+  }
+
+  if (!shop || !id) {
     return <Redirect href="/(tabs)/nearYou" />
   }
 
@@ -292,6 +410,7 @@ export default function ShopDetailScreen() {
                 renderItem={({ item }) => (
                   <ProductCard
                     item={item}
+                    merchantId={id}
                     styles={styles}
                     themeColors={themeColors}
                   />
@@ -313,6 +432,7 @@ export default function ShopDetailScreen() {
                 <ProductListItem
                   key={product.id}
                   item={product}
+                  merchantId={id}
                   styles={styles}
                   themeColors={themeColors}
                 />
@@ -323,13 +443,14 @@ export default function ShopDetailScreen() {
           {filteredHighlights.length === 0 &&
             filteredCategories.length === 0 && (
               <ThemedText style={styles.noResultsText}>
-                No products found for "{searchQuery}"
+                No products found{searchQuery ? ` for "${searchQuery}"` : ''}
               </ThemedText>
             )}
 
           <View style={{ height: 20 }} />
         </ScrollView>
       </SafeAreaView>
+
       <CartButton />
     </View>
   )

@@ -5,15 +5,21 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native'
-import { ThemedView } from '@/components/themed-view'
 import { ThemedText } from '@/components/themed-text'
 import { Colors } from '@/constants/theme'
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { Stack, useLocalSearchParams, Redirect, useRouter } from 'expo-router'
 import { useCart } from '@/context/CartContext'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { creditData } from '@/data/homeData'
+import apiClient from '@/services/api'
+
+interface WalletSummary {
+  available: string
+  total: string
+  currency: string
+}
 
 const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
   return StyleSheet.create({
@@ -43,6 +49,7 @@ const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
       fontSize: 14,
       color: themeColors.secondaryText,
       marginBottom: 20,
+      height: 20, // Added height for loading indicator stability
     },
     payButton: {
       width: '100%',
@@ -113,6 +120,28 @@ export default function PaymentScreen() {
   const router = useRouter()
   const { clearCart } = useCart()
 
+  const [wallet, setWallet] = useState<WalletSummary | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchWalletSummary = async () => {
+      try {
+        setIsLoading(true)
+        const response = await apiClient.get<WalletSummary>(
+          '/wallets/me/summary/'
+        )
+        setWallet(response.data)
+      } catch (error) {
+        console.error('Failed to fetch wallet summary:', error)
+        Alert.alert('Error', 'Could not load your credit information.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchWalletSummary()
+  }, [])
+
   if (!totalAmount) {
     return <Redirect href="/(tabs)" />
   }
@@ -131,6 +160,24 @@ export default function PaymentScreen() {
     })
   }
 
+  const renderAvailableCredit = () => {
+    if (isLoading) {
+      return (
+        <ActivityIndicator size="small" color={themeColors.secondaryText} />
+      )
+    }
+    if (wallet) {
+      const availableAmount = parseFloat(wallet.available)
+      return `Available Credit: ${
+        wallet.currency
+      } ${availableAmount.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`
+    }
+    return 'Could not load credit'
+  }
+
   return (
     <SafeAreaView style={styles.safeAreaWrapper} edges={['bottom']}>
       <Stack.Screen options={{ title: 'Payment' }} />
@@ -141,7 +188,7 @@ export default function PaymentScreen() {
             ฿ {totalAmount.toFixed(2)}
           </ThemedText>
           <ThemedText style={styles.credit}>
-            Available Credit: ฿ {creditData.available.toLocaleString()}
+            {renderAvailableCredit()}
           </ThemedText>
 
           <TouchableOpacity

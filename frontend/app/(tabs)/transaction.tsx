@@ -6,21 +6,28 @@ import {
   useColorScheme,
   Platform,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native'
 import { ThemedView } from '@/components/themed-view'
 import { ThemedText } from '@/components/themed-text'
 import { Colors } from '@/constants/theme'
-import React from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { Link } from 'expo-router'
-import { allTransactions, Transaction } from '@/data/transactionData'
+import apiClient from '@/services/api'
 
-const formatCurrency = (amount: number) => {
-  const currency = allTransactions[0]?.currency || '฿'
-  return `${currency} ${Math.abs(amount).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
+export interface Transaction {
+  id: string
+  title: string
+  date: string
+  timestamp: string
+  amount: string
+  status: string
+  category: string
+  merchantName: string
+  location: string
+  referenceId: string
+  currency: string
 }
 
 const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
@@ -34,6 +41,17 @@ const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
     },
     container: {
       flex: 1,
+    },
+    centered: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    errorText: {
+      color: themeColors.text,
+      fontSize: 16,
+      textAlign: 'center',
+      padding: 20,
     },
     header: {
       paddingHorizontal: 20,
@@ -96,9 +114,11 @@ const getDynamicStyles = (themeColors: (typeof Colors)['light']) => {
 const TransactionItem = ({
   item,
   styles,
+  formatCurrency,
 }: {
   item: Transaction
   styles: ReturnType<typeof getDynamicStyles>
+  formatCurrency: (amount: number) => string
 }) => (
   <Link href={`/transaction/${item.id}`} asChild>
     <TouchableOpacity style={styles.transactionItem}>
@@ -109,7 +129,7 @@ const TransactionItem = ({
       </View>
       <View style={styles.transactionRight}>
         <ThemedText style={styles.transactionAmount}>
-          {formatCurrency(item.amount)}
+          {formatCurrency(parseFloat(item.amount))}
         </ThemedText>
         <Ionicons
           name="chevron-forward"
@@ -126,29 +146,92 @@ export default function TransactionScreen() {
   const themeColors = Colors[colorScheme]
   const styles = getDynamicStyles(themeColors)
 
-  const groupedTransactions = allTransactions.reduce((acc, tx) => {
-    ;(acc[tx.date] = acc[tx.date] || []).push(tx)
-    return acc
-  }, {} as Record<string, Transaction[]>)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [currencySymbol, setCurrencySymbol] = useState('฿')
 
-  const sections = Object.keys(groupedTransactions).map((date) => ({
-    title: date,
-    data: groupedTransactions[date],
-  }))
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        const response = await apiClient.get<Transaction[]>(
+          '/wallets/me/transactions/'
+        )
+        setTransactions(response.data)
+        if (response.data.length > 0) {
+          // const apiCurrency = response.data[0].currency
+          // setCurrencySymbol(apiCurrency === 'B' ? '฿' : apiCurrency)
+          const apiCurrency ='฿'
+        }
+      } catch (err) {
+        console.error('Failed to fetch transactions:', err)
+        setError('Could not load transactions.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchTransactions()
+  }, [])
+
+  const sections = useMemo(() => {
+    const groupedTransactions = transactions.reduce((acc, tx) => {
+      ;(acc[tx.date] = acc[tx.date] || []).push(tx)
+      return acc
+    }, {} as Record<string, Transaction[]>)
+
+    return Object.keys(groupedTransactions).map((date) => ({
+      title: date,
+      data: groupedTransactions[date],
+    }))
+  }, [transactions])
+
+  const formatCurrency = (amount: number) => {
+    return `${currencySymbol} ${Math.abs(amount).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`
+  }
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeAreaWrapper}>
+        <ThemedView style={[styles.safeArea, styles.centered]}>
+          <ActivityIndicator size="large" color={themeColors.tint} />
+        </ThemedView>
+      </SafeAreaView>
+    )
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safeAreaWrapper}>
+        <ThemedView style={[styles.safeArea, styles.centered]}>
+          <ThemedText style={styles.errorText}>{error}</ThemedText>
+        </ThemedView>
+      </SafeAreaView>
+    )
+  }
 
   return (
     <SafeAreaView style={styles.safeAreaWrapper}>
       <ThemedView style={styles.safeArea}>
         <SectionList
           sections={sections}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item.id}
           ListHeaderComponent={
             <View style={styles.header}>
               <ThemedText style={styles.title}>Transactions</ThemedText>
             </View>
           }
           renderItem={({ item }) => (
-            <TransactionItem item={item} styles={styles} />
+            <TransactionItem
+              item={item}
+              styles={styles}
+              formatCurrency={formatCurrency}
+            />
           )}
           renderSectionHeader={({ section: { title } }) => (
             <View style={styles.sectionHeader}>
@@ -156,6 +239,11 @@ export default function TransactionScreen() {
             </View>
           )}
           stickySectionHeadersEnabled={true}
+          ListEmptyComponent={
+            <View style={styles.centered}>
+              <ThemedText>No transactions found.</ThemedText>
+            </View>
+          }
         />
       </ThemedView>
     </SafeAreaView>
