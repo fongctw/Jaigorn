@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import InstallmentBill, WalletAccount, WalletTransaction
 from decimal import Decimal
 from django.utils import timezone
+from django.core.validators import MinValueValidator
 
 class CreditDataSerializer(serializers.ModelSerializer):
 
@@ -203,3 +204,11 @@ class WalletTransactionSerializer(serializers.ModelSerializer):
             return "TODAY"
 
         return obj.created_at.strftime('%-d %B %Y').upper()
+
+class GenericSpendSerializer(serializers.Serializer):
+
+    amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )

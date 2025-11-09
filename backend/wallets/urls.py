@@ -1,6 +1,9 @@
 from django.urls import path
-from .views import CustomerPayView, UnpaidBillListView, RepayBillAPIView, CreditSummaryView, HomeBillListView, TransactionHistoryView, MyTransactionHistoryView
-
+from .views import (
+    CustomerPayView, UnpaidBillListView, RepayBillAPIView,
+    CreditSummaryView, HomeBillListView, TransactionHistoryView,
+    MyTransactionHistoryView, GenericSpendView
+)
 app_name = 'wallets'
 
 urlpatterns = [
@@ -21,6 +24,12 @@ urlpatterns = [
         'bills/<uuid:pk>/pay/',
         RepayBillAPIView.as_view(),
         name='customer-pay-bill'
+    ),
+
+    path(
+        'me/generic-spend/',
+        GenericSpendView.as_view(),
+        name='wallet-generic-spend'
     ),
 
     path(

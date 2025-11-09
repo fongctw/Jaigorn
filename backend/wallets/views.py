@@ -1,9 +1,10 @@
 import logging
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from rest_framework import status, generics, permissions
 from rest_framework.permissions import IsAuthenticated
-# Create your views here.
-from .serializers import CustomerPaySerializer, InstallmentBillSerializer, CreditDataSerializer, HomeBillSerializer, TransactionHistorySerializer, WalletTransactionSerializer
+from django.db import transaction
+from .serializers import CustomerPaySerializer, InstallmentBillSerializer, CreditDataSerializer, HomeBillSerializer, TransactionHistorySerializer, WalletTransactionSerializer, GenericSpendSerializer
 from .services import execute_bnpl_transaction, BNPLServiceError, execute_bill_repayment
 from .models import PaymentRequest, InstallmentBill, WalletAccount, WalletTransaction
 from django.db.models import Q
@@ -137,3 +138,58 @@ class MyTransactionHistoryView(generics.ListAPIView):
         ).filter(
             account__user=user
         ).order_by('-created_at')
+
+class MyTransactionHistoryView(generics.ListAPIView):
+
+    serializer_class = WalletTransactionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+
+        user = self.request.user
+
+        return WalletTransaction.objects.select_related(
+            'payment_request__merchant'
+        ).filter(
+            account__user=user
+        ).order_by('-created_at')
+
+class GenericSpendView(generics.GenericAPIView):
+
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = GenericSpendSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        amount = serializer.validated_data['amount']
+        user = request.user
+
+        try:
+            with transaction.atomic():
+                account = WalletAccount.objects.select_for_update().get(user=user)
+
+
+                available_credit = account.credit_limit - account.balance_due
+                if available_credit < amount:
+                    raise ValidationError('Insufficient funds.')
+
+                account.balance_due += amount
+                account.save()
+
+                WalletTransaction.objects.create(
+                    account=account,
+                    type_code=WalletTransaction.TxnType.PAYMENT,
+                    signed_amount=amount,
+                    balance_due_after=account.balance_due,
+                    payment_request=None
+                )
+
+            updated_wallet_serializer = CreditDataSerializer(account)
+            return Response(updated_wallet_serializer.data, status=status.HTTP_200_OK)
+
+        except WalletAccount.DoesNotExist:
+            return Response({'detail': 'Wallet account not found.'}, status=status.HTTP_404_NOT_FOUND)
+        except ValidationError as e:
+            return Response({'detail': e.detail[0]}, status=status.HTTP_400_BAD_REQUEST)
