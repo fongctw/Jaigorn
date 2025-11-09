@@ -1,0 +1,10 @@
+psycopg2
+python-dotenv
+djangorestframework
+djangorestframework-simplejwt
+django-cors-headers
+pytz
+django-storages
+boto3
+Pillow
+dj-database-url
